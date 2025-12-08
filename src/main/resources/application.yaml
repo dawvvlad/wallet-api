@@ -1,0 +1,6 @@
+spring:
+  application:
+      name: wallet-app
+  mvc:
+    servlet:
+      path: /api/v1
