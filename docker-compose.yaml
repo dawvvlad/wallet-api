@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: wallet-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-walletdb}
+      POSTGRES_USER: ${POSTGRES_USER:-walletuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-walletpass}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - wallet-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-walletuser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: wallet-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@wallet.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin123}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - wallet-network
+    depends_on:
+      - postgres
+    restart: unless-stopped
+  wallet-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    container_name: wallet-service
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-walletdb}
+      DB_USER: ${POSTGRES_USER:-walletuser}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-walletpass}
+
+      SPRING_PROFILES_ACTIVE: docker
+      SERVER_PORT: 8080
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseContainerSupport"
+      LIQUIBASE_ENABLED: "true"
+      LIQUIBASE_CONTEXTS: "docker"
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: DEBUG
+      LOGGING_LEVEL_ORG_HIBERNATE: INFO
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - ./logs:/app/logs
+      - ./src/main/resources:/app/config:ro
+volumes:
+  postgres_data:
+  pgadmin_data:
