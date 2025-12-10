@@ -1,11 +1,23 @@
 spring:
   application:
-      name: wallet-app
+    name: wallet-app
   mvc:
     servlet:
       path: /api/v1
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    contexts: ${LIQUIBASE_CONTEXTS:dev}
+    default-schema: public
+    liquibase-schema: public
+    drop-first: false
+
   datasource:
-    driverClassName: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/postgres
-    username: sa
-    password: sa
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:wallet_db}
+    username: ${DB_USER:wallet_user}
+    password: ${DB_PASSWORD:wallet_password}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate

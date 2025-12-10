@@ -53,7 +53,7 @@ public class WalletValidationAspect {
     }
 
     /**
-     * Обработка аннотации @CheckSufficientFunds
+     * Обработка аннотации @CheckBalanceFund
      */
     @Around("@annotation(checkBalanceFund)")
     public Object checkSufficientFunds(ProceedingJoinPoint joinPoint,

@@ -1,0 +1,100 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-wallet-operation-table
+      author: wallet-app
+      changes:
+        - createTable:
+            tableName: wallet_operation
+            columns:
+              - column:
+                  name: id
+                  type: BIGSERIAL
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_wallet_operation
+              - column:
+                  name: wallet_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_wallet_operation_wallet
+                    references: wallet(id)
+              - column:
+                  name: operation_type
+                  type: operation_type
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: DECIMAL(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: previous_balance
+                  type: DECIMAL(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: new_balance
+                  type: DECIMAL(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(500)
+              - column:
+                  name: reference_id
+                  type: VARCHAR(100)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: 'COMPLETED'
+                  constraints:
+                    nullable: false
+        - addCheckConstraint:
+            tableName: wallet_operation
+            constraintName: ck_wallet_operation_amount_positive
+            constraintBody: amount > 0
+        - addCheckConstraint:
+            tableName: wallet_operation
+            constraintName: ck_wallet_operation_status
+            constraintBody: status IN ('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED')
+        - sql:
+            sql: COMMENT ON TABLE wallet_operation IS 'Таблица истории операций по кошелькам';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.id IS 'Уникальный идентификатор операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.wallet_id IS 'Ссылка на кошелек';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.operation_type IS 'Тип операции (DEPOSIT/WITHDRAW)';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.amount IS 'Сумма операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.previous_balance IS 'Баланс до операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.new_balance IS 'Баланс после операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.description IS 'Описание операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.reference_id IS 'Внешний идентификатор для связи с другими системами';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.created_at IS 'Дата и время операции';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet_operation.status IS 'Статус операции';

@@ -1,0 +1,59 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-wallet-table
+      author: wallet-app
+      changes:
+        - createTable:
+            tableName: wallet
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+                    primaryKeyName: pk_wallet
+              - column:
+                  name: balance
+                  type: DECIMAL(19,4)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+        - addCheckConstraint:
+            tableName: wallet
+            constraintName: ck_wallet_balance_non_negative
+            constraintBody: balance >= 0
+        - sql:
+            sql: COMMENT ON TABLE wallet IS 'Таблица для хранения кошельков и их балансов';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet.id IS 'Уникальный идентификатор кошелька (UUID)';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet.balance IS 'Баланс кошелька с точностью до 4 знаков после запятой';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet.created_at IS 'Дата и время создания записи';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet.updated_at IS 'Дата и время последнего обновления записи';
+
+        - sql:
+            sql: COMMENT ON COLUMN wallet.version IS 'Версия записи для оптимистичной блокировки';

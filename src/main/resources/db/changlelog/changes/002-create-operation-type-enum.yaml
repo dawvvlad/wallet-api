@@ -1,0 +1,16 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-operation-type-enum
+      author: wallet-app
+      changes:
+        - sql:
+            sql: |
+              DO $$ 
+              BEGIN
+                IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'operation_type') THEN
+                  CREATE TYPE operation_type AS ENUM ('DEPOSIT', 'WITHDRAW');
+                END IF;
+              END $$;
+        - sql:
+            sql:
+              COMMENT ON TYPE operation_type IS 'Типы операций: DEPOSIT - пополнение, WITHDRAW - снятие';

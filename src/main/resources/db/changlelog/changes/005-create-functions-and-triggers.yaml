@@ -1,0 +1,120 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-functions-and-triggers
+      author: wallet-app
+      changes:
+        - sql:
+            sql: |
+              CREATE OR REPLACE FUNCTION update_updated_at_column()
+              RETURNS TRIGGER AS $$
+              BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                NEW.version = OLD.version + 1;
+                RETURN NEW;
+              END;
+              $$ language 'plpgsql';
+
+        - sql:
+            sql: COMMENT ON FUNCTION update_updated_at_column() IS 'Функция для автоматического обновления поля updated_at и версии';
+        - sql:
+            sql: |
+              CREATE TRIGGER trg_wallet_update_updated_at
+              BEFORE UPDATE ON wallet
+              FOR EACH ROW
+              EXECUTE FUNCTION update_updated_at_column();
+        - sql:
+            sql: |
+              CREATE OR REPLACE FUNCTION check_balance_before_withdraw()
+              RETURNS TRIGGER AS $$
+              BEGIN
+                -- Проверяем только для операций WITHDRAW
+                IF NEW.operation_type = 'WITHDRAW' THEN
+                  -- Получаем текущий баланс кошелька
+                  DECLARE
+                    current_balance DECIMAL(19,4);
+                  BEGIN
+                    SELECT balance INTO current_balance 
+                    FROM wallet 
+                    WHERE id = NEW.wallet_id
+                    FOR UPDATE; -- Блокируем запись для конкурентного доступа
+              
+                    IF current_balance < NEW.amount THEN
+                      RAISE EXCEPTION 'Insufficient funds. Current balance: %, Requested: %', 
+                        current_balance, NEW.amount;
+                    END IF;
+              
+                    -- Обновляем баланс
+                    UPDATE wallet 
+                    SET balance = balance - NEW.amount,
+                        updated_at = CURRENT_TIMESTAMP,
+                        version = version + 1
+                    WHERE id = NEW.wallet_id;
+              
+                    -- Заполняем балансы в операции
+                    NEW.previous_balance := current_balance;
+                    NEW.new_balance := current_balance - NEW.amount;
+              
+                  END;
+                END IF;
+              
+                RETURN NEW;
+              END;
+              $$ language 'plpgsql';
+
+        - sql:
+            sql: COMMENT ON FUNCTION check_balance_before_withdraw() IS 'Функция проверки баланса при снятии средств';
+        - sql:
+            sql: |
+              CREATE OR REPLACE FUNCTION process_deposit_operation()
+              RETURNS TRIGGER AS $$
+              BEGIN
+                -- Обрабатываем только депозиты
+                IF NEW.operation_type = 'DEPOSIT' THEN
+                  DECLARE
+                    current_balance DECIMAL(19,4);
+                  BEGIN
+                    -- Получаем текущий баланс
+                    SELECT COALESCE(balance, 0) INTO current_balance 
+                    FROM wallet 
+                    WHERE id = NEW.wallet_id
+                    FOR UPDATE;
+              
+                    -- Если кошелек не существует, создаем его
+                    IF NOT FOUND THEN
+                      INSERT INTO wallet (id, balance, created_at, updated_at, version)
+                      VALUES (NEW.wallet_id, NEW.amount, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0);
+              
+                      NEW.previous_balance := 0;
+                      NEW.new_balance := NEW.amount;
+                    ELSE
+                      -- Обновляем баланс существующего кошелька
+                      UPDATE wallet 
+                      SET balance = balance + NEW.amount,
+                          updated_at = CURRENT_TIMESTAMP,
+                          version = version + 1
+                      WHERE id = NEW.wallet_id;
+              
+                      NEW.previous_balance := current_balance;
+                      NEW.new_balance := current_balance + NEW.amount;
+                    END IF;
+              
+                  END;
+                END IF;
+              
+                RETURN NEW;
+              END;
+              $$ language 'plpgsql';
+        - sql:
+            sql: |
+              CREATE TRIGGER trg_wallet_operation_before_insert
+              BEFORE INSERT ON wallet_operation
+              FOR EACH ROW
+              EXECUTE FUNCTION process_deposit_operation();
+
+        - sql:
+            sql: |
+              CREATE TRIGGER trg_wallet_operation_before_withdraw
+              BEFORE INSERT ON wallet_operation
+              FOR EACH ROW
+              WHEN (NEW.operation_type = 'WITHDRAW')
+              EXECUTE FUNCTION check_balance_before_withdraw();
