@@ -10,11 +10,11 @@ import java.math.BigDecimal;
 
 @RestController
 @RequestMapping("/wallets")
-public class GetBalanceController {
+public class WalletBalanceController {
 
     @GetMapping("/{uuid}")
-    public ResponseEntity<BigDecimal> getWallet(@PathVariable String uuid) {
+    public ResponseEntity<BigDecimal> getBalance(@PathVariable String uuid) {
 
-        return uuid;
+        return null;
     }
 }
